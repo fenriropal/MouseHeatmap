@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% load static %}
+    <meta charset="utf-8" />
+    <title>Mouse Cilck Heatmap Example</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="index, follow" />
+    <meta name="description" content="This example shows how to use dynamic legends and tooltips with heatmap.js" />
+    <meta name="keywords" content="tooltip, heatmap, heatmap.js legend, heatmap legend" />
+    <link rel="stylesheet" href="https://www.patrick-wied.at/static/heatmapjs/assets/css/commons.css" />
+    <link rel="stylesheet" href="https://www.patrick-wied.at/static/heatmapjs/assets/css/example-commons.css" />
+    <style>
+        body, html { margin:0; padding:0; height:100%;}
+        body { font-family:sans-serif; }
+        body * { font-weight:200;}
+        .heatmapContainerWrapper { width:100%; height:100%; position:absolute; }
+        .heatmapContainer { width:100%; height:100%;}
+        .legend-area { position:absolute; bottom:0; right:0; padding:10px; background:white; outline:3px solid black; line-height:1em; }
+        h4 { margin:0; padding:0; margin-bottom:5px;}
+        #min { float:left; }
+        #max { float:right; }
+        span { font-size:14px; margin:0; padding:0; }
+        .tooltip { position:absolute; left:0; top:0; background:rgba(0,0,0,.8); color:white; font-size:14px; padding:5px; line-height:18px; display:none;}
+    </style>
+    <link rel="stylesheet" href="https://www.patrick-wied.at/static/heatmapjs/assets/third-party/prism/prism.css" />
+</head>
+<body>
+    <div class="heatmapContainerWrapper">
+      <div class="heatmapContainer">
+
+      </div>
+      <div class="tooltip"></div>
+     <div class="legend-area">
+       <h4>Data Color</h4>
+       <span id="min"></span>
+       <span id="max"></span>
+       <img id="gradient" src="" style="width:100%" />
+      </div>
+    </div>
+  <script src="https://www.patrick-wied.at/static/heatmapjs/assets/js/heatmap.min.js"></script>
+  <script>
+    window.onload = function() {
+      /*  legend code */
+      // we want to display the gradient, so we have to draw it
+      var legendCanvas = document.createElement('canvas');
+      legendCanvas.width = 100;
+      legendCanvas.height = 10;
+      var min = document.querySelector('#min');
+      var max = document.querySelector('#max');
+      var gradientImg = document.querySelector('#gradient');
+
+      var legendCtx = legendCanvas.getContext('2d');
+      var gradientCfg = {};
+
+      function updateLegend(data) {
+        // the onExtremaChange callback gives us min, max, and the gradientConfig
+        // so we can update the legend
+        min.innerHTML = data.min;
+        max.innerHTML = data.max;
+        // regenerate gradient image
+        if (data.gradient != gradientCfg) {
+          gradientCfg = data.gradient;
+          var gradient = legendCtx.createLinearGradient(0, 0, 100, 1);
+          for (var key in gradientCfg) {
+            gradient.addColorStop(key, gradientCfg[key]);
+          }
+
+          legendCtx.fillStyle = gradient;
+          legendCtx.fillRect(0, 0, 100, 10);
+          gradientImg.src = legendCanvas.toDataURL();
+        }
+      };
+      /* legend code end */
+      var heatmapInstance = h337.create({
+        container: document.querySelector('.heatmapContainer'),
+        onExtremaChange: function(data) {
+          updateLegend(data);
+        },
+        // the maximum opacity (the value with the highest intensity will have it)
+        maxOpacity: 1,
+        // minimum opacity. any value > 0 will produce
+        // no transparent gradient transition
+        //minOpacity: 0.1,
+        radius: 15,
+        blur: .90,
+        // backgroundColor with alpha so you can see through it
+        backgroundColor: 'rgba(255, 255, 255, 0.96)'
+      });
+
+      heatmapData = JSON.parse(sessionStorage.getItem("heatmapData"));
+      //console.log(heatmapData);
+      heatmapData.data = heatmapData.data.filter(val => val.MOUSE_CLICKED !== "false");
+      //for(var i = 0; i < heatmapData.data.length; i++) {
+        // if(heatmapData.data[i].MOUSE_CLICKED=="true"){
+        //   heatmapData.data.splice(i,1);
+        // }
+      //}
+      console.log(heatmapData);
+      //จัดรูปแบบสำหรับแสดงผลบน heatmap.js
+      heatmapData = heatmapData.data.map(function(obj) {
+        return { x: obj.CLIENTX, y: obj.CLIENTY, value: 1 };
+      });
+      //รวม heatmapData ที่มีค่า x และ y ทีซ้ำกัน โดยการ value++
+      combineValueDupicateXY(heatmapData);
+      //find min and max value
+      var maxValue= 0;
+      var minValue= 99999;
+      for(var i = 0; i <  heatmapData.length; i++) {
+        if(maxValue < parseInt(heatmapData[i].value)){
+          maxValue = parseInt( heatmapData[i].value);
+        }
+        if(minValue > parseInt(heatmapData[i].value)){
+          minValue = parseInt(heatmapData[i].value);
+        }
+      }
+      console.log("max:"+maxValue);
+      console.log("min:"+minValue);
+      
+      inputHeatmapData = {
+        min: minValue,
+        max: maxValue,
+        data: heatmapData
+      }
+      console.log("Test:"+JSON.stringify(inputHeatmapData));
+      heatmapInstance.setData(inputHeatmapData); 
+
+      var demoWrapper = document.querySelector('.heatmapContainerWrapper');
+      var tooltip = document.querySelector('.tooltip');
+
+      function updateTooltip(x, y, value) {
+        // + 15 for distance to cursor
+        var transform = 'translate(' + (x + 15) + 'px, ' + (y + 15) + 'px)';
+        tooltip.style.MozTransform = transform; /* Firefox */
+        tooltip.style.msTransform = transform; /* IE (9+) - note ms is lowercase */
+        tooltip.style.OTransform = transform; /* Opera */
+        tooltip.style.WebkitTransform = transform; /* Safari and Chrome */
+        tooltip.style.transform = transform; /* One day, my pretty */
+        tooltip.innerHTML = value;
+      }
+
+      demoWrapper.onmousemove = function(ev) {
+        var x = ev.layerX;
+        var y = ev.layerY;
+        var value = heatmapInstance.getValueAt({
+          x: x,
+          y: y
+        });
+
+        tooltip.style.display = 'block';
+
+        updateTooltip(x, y, value);
+      };
+      demoWrapper.onmouseout = function() {
+        tooltip.style.display = 'none';
+      };
+      function combineValueDupicateXY(inputData) {
+        //รวม heatmapData ที่มีค่า x และ y ทีซ้ำกัน โดยการ value++
+        console.log("Before:"+JSON.stringify(inputData));
+        for(var i = 0; i < inputData.length; i++) {
+          for(var j = i+1; j < inputData.length; j++){
+            if(inputData[i].x == inputData[j].x && inputData[i].y == inputData[j].y){
+              console.log('in if ('+i+','+j+') "x":"'+inputData[i].x+'","y":"'+inputData[i].y+'"');
+              inputData[i].value++;
+              inputData.splice(j,1);
+              j--;
+              console.log('length:'+inputData.length);
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <script src="https://www.patrick-wied.at/static/heatmapjs/assets/third-party/prism/prism.js"></script>
+</body>
+</html>

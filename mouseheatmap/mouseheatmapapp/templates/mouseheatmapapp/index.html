@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% load static %}
+    <meta charset="utf-8">
+    <title>Mousemove example (with backgroundColor) | heatmap.js</title>
+    <script src="https://unpkg.com/papaparse@latest/papaparse.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.12.1/css/dataTables.bootstrap5.min.css">
+    <link rel="stylesheet" href="{% static 'mouseheatmapapp/style.css' %}">
+    <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.12.1/js/jquery.dataTables.min.js"></script>
+    <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.12.1/js/dataTables.bootstrap5.min.js"></script>
+</head>
+<body>
+    <a href="{% url 'mouseheatmapapp:get_path' %}">Read New Values of All Duration Time Min-Max</a>
+    {% if initialdata %}
+        <ul>
+        {% for data in initialdata %}
+            <li>Current folder path : {{data.folder_path}}</li>
+            <li>Total Mouse Movement Min : {{data.min_mouse_movement}} and Max : {{data.max_mouse_movement}}</li>
+            <li>Total Duration Time Min : {{data.min_duration_time}} and Max : {{data.max_duration_time}}</li>
+            <li>Total Mouse Click Min : {{data.min_mouse_click}} and Max : {{data.max_mouse_click}}</li>
+        {% endfor %}
+        </ul>
+    {% else %}
+        <ul>
+            <li>Total Duration Time Min : 0</li>
+            <li>Total Duration Time Max : 0</li>
+        </ul>
+    {% endif %}
+    
+    <form id="myForm" method="post">
+        {% csrf_token %}
+        <input type="file" id="csvFile" accept=".csv" />
+        <br />
+        <input type="hidden" id="heatmapdata" />
+        <input type="submit" value="Read Data" />
+    </form>
+    <script>
+        const myForm = document.getElementById("myForm");
+        const csvFile = document.getElementById("csvFile");
+        const useallminmax = document.getElementById("useallminmax");
+        myForm.addEventListener("submit", function (e) {
+            e.preventDefault();
+            Papa.parse(csvFile.files[0], {
+                complete: function (results) {
+                    console.log(results);
+                    //find durationTimeTotal of user in milisecond and min unit.
+                    var durationTimeTotal =(results.data[results.data.length-1].UNIX_TIMESTAMP_MS) - (results.data[0].UNIX_TIMESTAMP_MS);
+                    document.write('<a href="{% url 'mouseheatmapapp:read_minmax' %}">Read New Values of All Duration Time Min-Max</a>');
+                    {% if initialdata %}
+                        document.write('<ul>');
+                        {% for data in initialdata %}
+                            document.write('<li>Current folder path : {{data.folder_path}}</li>');
+                            document.write('<li>Total Duration Time Min : {{data.min_duration_time}} and Max : {{data.max_duration_time}}</li>');
+                        {% endfor %}
+                        document.write('</ul>');
+                    {% else %}
+                        document.write('<ul>');
+                            document.write('<li>Total Duration Time Min : 0</li>');
+                            document.write('<li>Total Duration Time Max : 0</li>');
+                        document.write('</ul>');
+                    {% endif %} 
+                    document.write('<div><input type="checkbox" id="useallminmax" name="useallminmax" onclick="handleClick(this);"><label for="useallminmax">Use this all min max value</label></div>');
+                    document.write('<div><a id="link_m" href="{% url 'mouseheatmapapp:gen_mousemovementhm' 0 %}">Mouse Movement Heatmap</a><div>');
+                    document.write('<div><a id="link_d" href="{% url 'mouseheatmapapp:gen_durationtimehm' 0 %}">Mouse Duration Heatmap</a><div>');
+                    document.write('<div><a id="link_c" href="{% url 'mouseheatmapapp:gen_mouseclickhm' 0 %}">Mouse Click Heatmap</a><div>');
+                    document.write('<div>Duration Time Total in MS Unit: '+durationTimeTotal+' and Min. Unit:'+(((durationTimeTotal)/1000)/60)+'<div>');
+                    document.write('<div><table id="example" class="display" style="width:100%">');
+                    document.write('<thead><tr><th>UNIX_TIMESTAMP_MS</th><th>DURATION_TIME_MS</th><th>CLIENTX</th><th>CLIENTY</th><th>MOVEMENTX</th><th>MOVEMENTY</th><th>LAST_MOUSE_MOVEMENT_MS</th><th>MOUSE_CLICKED</th></tr></thead>');
+                    document.write('<tbody>');
+                    var durationData=0;
+                    
+                    for(var i = 0; i < results.data.length; i++) {
+                        document.write('<tr><td>'+(results.data[i].UNIX_TIMESTAMP_MS)+'</td>');
+                        if(i < results.data.length-1){
+                            durationData = (results.data[i+1].UNIX_TIMESTAMP_MS)-(results.data[i].UNIX_TIMESTAMP_MS);
+                            results.data[i]['DURATION_TIME_MS']=durationData.toString();
+                            document.write('<td>'+durationData+'</td>');
+                        }else{
+                            durationData=0;
+                            results.data[i]['DURATION_TIME_MS']=durationData.toString();
+                            document.write('<td>'+durationData+'</td>');
+                        }
+                        document.write('<td>'+results.data[i].CLIENTX+'</td>');
+                        document.write('<td>'+results.data[i].CLIENTY+'</td>');
+                        document.write('<td>'+results.data[i].MOVEMENTX+'</td>');
+                        document.write('<td>'+results.data[i].MOVEMENTY+'</td>');
+                        document.write('<td>'+results.data[i].LAST_MOUSE_MOVEMENT_MS+'</td>');
+                        document.write('<td>'+results.data[i].MOUSE_CLICKED+'</td></tr>');
+                    }
+                    document.write('</tbody></table><div>');
+                    $(document).ready(function () {
+                    $('#example').DataTable(
+                        {
+                            "pageLength": 20,
+                        }
+                    );
+                    });
+                    // //จัดรูปแบบสำหรับแสดงผลบน heatmap.js
+                    sessionStorage.setItem("heatmapData", JSON.stringify(results));
+                    console.log(results);
+                },
+                header: true,
+            });
+        });
+        function handleClick(cb) {
+            // alert("Clicked, new value = " + cb.checked);
+            const link_m = document.querySelector('#link_m');
+            const link_d = document.querySelector('#link_d');
+            const link_c = document.querySelector('#link_c');
+            if(cb.checked){
+                link_m.href = "{% url 'mouseheatmapapp:gen_mousemovementhm' 1 %}";
+                link_d.href = "{% url 'mouseheatmapapp:gen_durationtimehm' 1 %}";
+                link_c.href = "{% url 'mouseheatmapapp:gen_mouseclickhm' 1 %}";
+            }
+            else{
+                link_m.href = "{% url 'mouseheatmapapp:gen_mousemovementhm' 0 %}";
+                link_d.href = "{% url 'mouseheatmapapp:gen_durationtimehm' 0 %}";
+                link_c.href = "{% url 'mouseheatmapapp:gen_mouseclickhm' 0 %}";
+            }
+            alert(link_d.href);
+
+        }
+    </script>
+</body>

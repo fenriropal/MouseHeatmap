@@ -1,0 +1,12 @@
+{% load static %}
+<link rel="stylesheet" href="{% static 'mouseheatmapapp/style.css' %}">
+
+{% if latest_heatmap_info_list %}
+    <ul>
+    {% for info in latest_heatmap_info_list %}
+        <li><a href="{% url 'mouseheatmapapp:detail' info.id %}">{{ info.max_duration_time }}</a></li>
+    {% endfor %}
+    </ul>
+{% else %}
+    <p>No data are available.</p>
+{% endif %}

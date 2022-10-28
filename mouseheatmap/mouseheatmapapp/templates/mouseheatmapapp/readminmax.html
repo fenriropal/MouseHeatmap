@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>Mousemove example (with backgroundColor) | heatmap.js</title>
+    <script src="https://unpkg.com/papaparse@latest/papaparse.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.12.1/css/dataTables.bootstrap5.min.css">
+    <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.12.1/js/jquery.dataTables.min.js"></script>
+    <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.12.1/js/dataTables.bootstrap5.min.js"></script>
+</head>
+
+<body>
+    <form id="myForm">
+        <input type="file" id="csvFile" accept=".csv" />
+        <br />
+        <input type="hidden" id="heatmapdata" />
+        <input type="submit" value="Read Data" />
+    </form>
+    <script>
+        const myForm = document.getElementById("myForm");
+        const csvFile = document.getElementById("csvFile");
+        myForm.addEventListener("submit", function (e) {
+            e.preventDefault();
+            Papa.parse(csvFile.files[0], {
+                complete: function (results) {
+                    console.log(results);
+                    //find durationTimeTotal of user in milisecond and min unit.
+                    var durationTimeTotal =(results.data[results.data.length-1].UNIX_TIMESTAMP_MS) - (results.data[0].UNIX_TIMESTAMP_MS);
+                    document.write('<div><a href="./testMouseHeatmapMovement.html">Mouse Movement Heatmap</a><div>');
+                    document.write('<div><a href="./testMouseHeatmapDuration.html">Mouse Duration Heatmap</a><div>');
+                    document.write('<div><a href="./testMouseHeatmapClick.html">Mouse Click Heatmap</a><div>');
+                    document.write('<div>Duration Time Total in MS Unit: '+durationTimeTotal+' and Min. Unit:'+(((durationTimeTotal)/1000)/60)+'<div>');
+                    document.write('<div><table id="example" class="display" style="width:100%">');
+                    document.write('<thead><tr><th>UNIX_TIMESTAMP_MS</th><th>DURATION_TIME_MS</th><th>CLIENTX</th><th>CLIENTY</th><th>MOVEMENTX</th><th>MOVEMENTY</th><th>LAST_MOUSE_MOVEMENT_MS</th><th>MOUSE_CLICKED</th></tr></thead>');
+                    document.write('<tbody>');
+                    var durationData=0;
+                    
+                    for(var i = 0; i < results.data.length; i++) {
+                        document.write('<tr><td>'+(results.data[i].UNIX_TIMESTAMP_MS)+'</td>');
+                        if(i < results.data.length-1){
+                            durationData = (results.data[i+1].UNIX_TIMESTAMP_MS)-(results.data[i].UNIX_TIMESTAMP_MS);
+                            results.data[i]['DURATION_TIME_MS']=durationData.toString();
+                            document.write('<td>'+durationData+'</td>');
+                        }else{
+                            durationData=0;
+                            results.data[i]['DURATION_TIME_MS']=durationData.toString();
+                            document.write('<td>'+durationData+'</td>');
+                        }
+                        document.write('<td>'+results.data[i].CLIENTX+'</td>');
+                        document.write('<td>'+results.data[i].CLIENTY+'</td>');
+                        document.write('<td>'+results.data[i].MOVEMENTX+'</td>');
+                        document.write('<td>'+results.data[i].MOVEMENTY+'</td>');
+                        document.write('<td>'+results.data[i].LAST_MOUSE_MOVEMENT_MS+'</td>');
+                        document.write('<td>'+results.data[i].MOUSE_CLICKED+'</td></tr>');
+                    }
+                    document.write('</tbody></table><div>');
+                    $(document).ready(function () {
+                    $('#example').DataTable(
+                        {
+                            "pageLength": 20,
+                        }
+                    );
+                    });
+                    // //จัดรูปแบบสำหรับแสดงผลบน heatmap.js
+                    sessionStorage.setItem("heatmapData", JSON.stringify(results));
+                    console.log(results);
+                },
+                header: true,
+            });
+        });
+    </script>
+</body>
+
+</html>
